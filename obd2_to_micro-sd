@@ -1,0 +1,49 @@
+#include <SPI.h>
+#include <mcp_can.h>
+#include <SD.h>
+
+const int chipSelect = 4; // Change to your SD card's CS pin if different
+MCP_CAN CAN0(10); // Set CS to pin 10 for the CAN module
+
+void setup() {
+  Serial.begin(115200);
+  if (!SD.begin(chipSelect)) {
+    Serial.println("SD card initialization failed!");
+    return;
+  }
+  Serial.println("SD card initialization successful.");
+
+  if (CAN0.begin(MCP_ANY, CAN_500KBPS, MCP_16MHZ) != CAN_OK) {
+    Serial.println("CAN initialization failed");
+    while (1);
+  }
+  Serial.println("CAN initialization successful.");
+}
+
+void loop() {
+  if (CAN0.checkReceive() == CAN_MSGAVAIL) {
+    long unsigned int rxId;
+    byte len = 0;
+    byte buf[8];
+    CAN0.readMsgBuf(&rxId, &len, buf);
+
+    // Open file to log data
+    File dataFile = SD.open("datalog.txt", FILE_WRITE);
+
+    if (dataFile) {
+      dataFile.print("Message ID: ");
+      dataFile.print(rxId, HEX);
+      dataFile.print(" Data: ");
+      for (int i = 0; i < len; i++) {
+        dataFile.print(buf[i], HEX);
+        dataFile.print(" ");
+      }
+      dataFile.println();
+      dataFile.close();
+      Serial.println("Data logged successfully.");
+    } else {
+      Serial.println("Error opening datalog.txt");
+    }
+  }
+  delay(1000); // Adjust delay as needed
+}
